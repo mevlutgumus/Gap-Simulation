@@ -4,3 +4,5 @@ folium
 pandas
 numpy<2
 ortools
+pulp
+geoph
