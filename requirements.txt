@@ -3,7 +3,5 @@ streamlit-folium
 folium
 pandas
 numpy<2
-ortools
 pulp
 geopy
-
