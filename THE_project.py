@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
+from folium.plugins import AntPath
 import pulp as lp
 from geopy.distance import geodesic
 
@@ -316,11 +317,14 @@ with st.sidebar:
     if priority_mode and len(selected_faults) > 0:
         st.markdown("**Select critical points** (unselected substations default to P4)")
 
+        # Dynamic key suffix to reset dropdowns when selected faults change
+        fault_key = str(len(selected_faults)) + "_" + str(hash(tuple(sorted(selected_faults))) % 10000)
+
         p1_faults = st.multiselect(
             "P1 — Life-Critical (Hospital, Dialysis Center)",
             options=selected_faults,
             default=[],
-            key="p1"
+            key=f"p1_{fault_key}"
         )
         remaining_after_p1 = [f for f in selected_faults if f not in p1_faults]
 
@@ -328,7 +332,7 @@ with st.sidebar:
             "P2 — Security/Public Order (Military Zone, Police Station)",
             options=remaining_after_p1,
             default=[],
-            key="p2"
+            key=f"p2_{fault_key}"
         )
         remaining_after_p2 = [f for f in remaining_after_p1 if f not in p2_faults]
 
@@ -336,7 +340,7 @@ with st.sidebar:
             "P3 — Socially Sensitive (School, Care Home)",
             options=remaining_after_p2,
             default=[],
-            key="p3"
+            key=f"p3_{fault_key}"
         )
 
         for f in p1_faults:
@@ -553,9 +557,6 @@ with col_map:
     crew_color = {crew_list[idx]: palette[idx % len(palette)] for idx in range(len(crew_list))}
     crew_hex = {crew_list[idx]: hex_palette[idx % len(hex_palette)] for idx in range(len(crew_list))}
 
-    # Priority icons
-    priority_icons = {1: "hospital-o", 2: "shield", 3: "graduation-cap", 4: "bolt"}
-
     # Add crews to map
     for i, (ilat, ilon) in crew_data.items():
         fault_count = len(team_assignments.get(i, []))
@@ -564,6 +565,9 @@ with col_map:
             tooltip=f"Crew: {i} | Capacity: {cap_dict.get(i, 0)} | Assigned: {fault_count}",
             icon=folium.Icon(color=crew_color[i], icon="users", prefix="fa")
         ).add_to(m)
+
+    # Priority color coding (border colors for critical markers)
+    priority_border = {1: "#ff0000", 2: "#ff8c00", 3: "#ffd700", 4: "transparent"}
 
     # Add substations to map
     for j, (jlat, jlon) in substation_coords.items():
@@ -575,29 +579,61 @@ with col_map:
 
         if assigned_i is None:
             color = "gray"
+            color_hex_j = "#808080"
             assigned_i_text = "Unassigned"
         else:
             color = crew_color[assigned_i]
+            color_hex_j = crew_hex[assigned_i]
             assigned_i_text = assigned_i
 
         p_level = priority_map.get(j, 4)
         p_label = {1: "P1-Life Critical", 2: "P2-Security", 3: "P3-Social", 4: "P4-Normal"}.get(p_level, "P4")
-        icon_name = priority_icons.get(p_level, "bolt")
 
         # Get visit order
         visit_info = ""
+        visit_order_num = ""
         if assigned_i and len(tsp_results.get(assigned_i, ())) > 4:
             vo = tsp_results[assigned_i][4] if len(tsp_results[assigned_i]) > 4 else {}
             if j in vo:
                 visit_info = f" | Visit Order: {vo[j]}"
+                visit_order_num = str(vo[j])
 
-        folium.Marker(
-            location=(jlat, jlon),
-            tooltip=f"Fault: {j} | {p_label} | Crew: {assigned_i_text}{visit_info}",
-            icon=folium.Icon(color=color, icon=icon_name, prefix="fa")
-        ).add_to(m)
+        tooltip_text = f"Fault: {j} | {p_label} | Crew: {assigned_i_text}{visit_info}"
 
-    # Add TSP routes to map (ordered lines)
+        if p_level <= 3:
+            # Critical faults: large DivIcon with P1/P2/P3 label
+            border_col = priority_border[p_level]
+            size = 36
+            html = (
+                f'<div style="'
+                f'width:{size}px;height:{size}px;'
+                f'background:{color_hex_j};'
+                f'border:3px solid {border_col};'
+                f'border-radius:50%;'
+                f'display:flex;align-items:center;justify-content:center;'
+                f'color:white;font-weight:bold;font-size:13px;'
+                f'box-shadow:0 0 8px {border_col};'
+                f'cursor:pointer;'
+                f'">P{p_level}</div>'
+            )
+            folium.Marker(
+                location=(jlat, jlon),
+                tooltip=tooltip_text,
+                icon=folium.DivIcon(
+                    html=html,
+                    icon_size=(size, size),
+                    icon_anchor=(size // 2, size // 2)
+                )
+            ).add_to(m)
+        else:
+            # Normal faults (P4): standard icon
+            folium.Marker(
+                location=(jlat, jlon),
+                tooltip=tooltip_text,
+                icon=folium.Icon(color=color, icon="bolt", prefix="fa")
+            ).add_to(m)
+
+    # Add TSP routes to map (directional AntPath arrows)
     for team_name in crew_list:
         result = tsp_results[team_name]
         route = result[1]
@@ -615,29 +651,49 @@ with col_map:
             elif node in substation_coords:
                 route_coords.append(substation_coords[node])
 
-        # Ordered route line
-        folium.PolyLine(
+        # Directional route with animated arrows (AntPath)
+        AntPath(
             locations=route_coords,
             color=color_hex,
-            weight=3,
-            opacity=0.85,
+            weight=4,
+            opacity=0.8,
+            dash_array=[15, 30],
+            delay=1500,
             tooltip=f"{team_name} route — {result[2]} km"
         ).add_to(m)
 
-        # Add visit order numbers on route nodes (circle markers)
+        # Add visit order number markers on each stop
         for idx, node in enumerate(route):
             if node == team_name:
                 continue
             if node in substation_coords:
                 coord = substation_coords[node]
-                folium.CircleMarker(
+                # Show visit order number on the route
+                order_html = (
+                    f'<div style="'
+                    f'width:22px;height:22px;'
+                    f'background:{color_hex};'
+                    f'border:2px solid white;'
+                    f'border-radius:50%;'
+                    f'display:flex;align-items:center;justify-content:center;'
+                    f'color:white;font-weight:bold;font-size:11px;'
+                    f'box-shadow:0 1px 4px rgba(0,0,0,0.4);'
+                    f'">{idx}</div>'
+                )
+                folium.Marker(
                     location=coord,
-                    radius=10,
-                    color=color_hex,
-                    fill=True,
-                    fill_color=color_hex,
-                    fill_opacity=0.9,
-                    tooltip=f"Order: {idx}"
+                    icon=folium.DivIcon(
+                        html=order_html,
+                        icon_size=(22, 22),
+                        icon_anchor=(11, 11)
+                    )
                 ).add_to(m)
 
     st_folium(m, width=None, height=720)
+
+    # Footer credit
+    st.markdown(
+        "<div style='text-align:right; color:gray; font-size:12px; padding-top:8px;'>"
+        "Built by Mevlüt Gümüş</div>",
+        unsafe_allow_html=True
+    )
