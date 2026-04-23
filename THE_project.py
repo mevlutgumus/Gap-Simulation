@@ -459,6 +459,23 @@ with col_right:
     mode_text = "Emergency Response (P1→P2→P3→P4)" if is_priority else "Standard (Distance Only)"
     st.info(f"Routing Mode: **{mode_text}**")
 
+    # Priority legend (only in Emergency Response mode)
+    if is_priority:
+        st.markdown(
+            '<div style="background:#1a1a2e; border:1px solid #333; border-radius:8px; padding:12px 16px; margin-bottom:12px;">'
+            '<div style="font-weight:bold; color:#ccc; margin-bottom:8px; font-size:13px;">Priority Legend</div>'
+            '<div style="margin:4px 0;"><span style="color:#ff0000; text-shadow:0 0 8px #ff0000; font-weight:bold;">⬤</span> '
+            '<span style="color:#ff4444; text-shadow:0 0 6px #ff0000;">P1 — Life-Critical (Hospital, Dialysis Center)</span></div>'
+            '<div style="margin:4px 0;"><span style="color:#ff8c00; text-shadow:0 0 8px #ff8c00; font-weight:bold;">⬤</span> '
+            '<span style="color:#ffaa33; text-shadow:0 0 6px #ff8c00;">P2 — Security / Public Order (Military Zone)</span></div>'
+            '<div style="margin:4px 0;"><span style="color:#ffd700; text-shadow:0 0 8px #ffd700; font-weight:bold;">⬤</span> '
+            '<span style="color:#ffe44d; text-shadow:0 0 6px #ffd700;">P3 — Socially Sensitive (School, Care Home)</span></div>'
+            '<div style="margin:4px 0;"><span style="color:#888; font-weight:bold;">⬤</span> '
+            '<span style="color:#aaa;">P4 — Normal (Residential, Commercial)</span></div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
     # ---- ASSIGNMENT LIST ----
     st.subheader("Assignment List (GAP)")
     rows = []
@@ -601,28 +618,31 @@ with col_map:
         tooltip_text = f"Fault: {j} | {p_label} | Crew: {assigned_i_text}{visit_info}"
 
         if p_level <= 3:
-            # Critical faults: large DivIcon with P1/P2/P3 label
+            # Critical faults: pin-shaped marker with "P" label and priority glow
             border_col = priority_border[p_level]
-            size = 36
+            pin_size = 34
             html = (
+                f'<div style="position:relative;width:{pin_size}px;height:{pin_size + 10}px;">'
                 f'<div style="'
-                f'width:{size}px;height:{size}px;'
+                f'width:{pin_size}px;height:{pin_size}px;'
                 f'background:{color_hex_j};'
                 f'border:3px solid {border_col};'
-                f'border-radius:50%;'
+                f'border-radius:50% 50% 50% 0;'
+                f'transform:rotate(-45deg);'
                 f'display:flex;align-items:center;justify-content:center;'
-                f'color:white;font-weight:bold;font-size:13px;'
-                f'box-shadow:0 0 8px {border_col};'
-                f'cursor:pointer;'
-                f'">P{p_level}</div>'
+                f'box-shadow:0 0 10px {border_col}, 0 0 20px {border_col};'
+                f'">'
+                f'<span style="transform:rotate(45deg);color:white;font-weight:bold;font-size:14px;">P</span>'
+                f'</div>'
+                f'</div>'
             )
             folium.Marker(
                 location=(jlat, jlon),
                 tooltip=tooltip_text,
                 icon=folium.DivIcon(
                     html=html,
-                    icon_size=(size, size),
-                    icon_anchor=(size // 2, size // 2)
+                    icon_size=(pin_size, pin_size + 10),
+                    icon_anchor=(pin_size // 2, pin_size + 5)
                 )
             ).add_to(m)
         else:
@@ -693,7 +713,7 @@ with col_map:
 
     # Footer credit
     st.markdown(
-        "<div style='text-align:right; color:gray; font-size:12px; padding-top:8px;'>"
+        "<div style='text-align:right; color:gray; font-size:15px; padding-top:10px;'>"
         "Built by Mevlüt Gümüş</div>",
         unsafe_allow_html=True
     )
