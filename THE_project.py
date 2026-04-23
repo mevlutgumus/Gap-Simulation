@@ -465,11 +465,11 @@ with col_right:
             '<div style="background:#1a1a2e; border:1px solid #333; border-radius:8px; padding:12px 16px; margin-bottom:12px;">'
             '<div style="font-weight:bold; color:#ccc; margin-bottom:8px; font-size:13px;">Priority Legend</div>'
             '<div style="margin:4px 0;"><span style="color:#ff0000; text-shadow:0 0 8px #ff0000; font-weight:bold;">⬤</span> '
-            '<span style="color:#ff4444; text-shadow:0 0 6px #ff0000;">P1 — Life-Critical (Hospital, Dialysis Center)</span></div>'
+            '<span style="color:#ff4444; text-shadow:0 0 6px #ff0000;">P1 — Life-Critical (Hospital, Dialysis Center, etc.)</span></div>'
             '<div style="margin:4px 0;"><span style="color:#ff8c00; text-shadow:0 0 8px #ff8c00; font-weight:bold;">⬤</span> '
-            '<span style="color:#ffaa33; text-shadow:0 0 6px #ff8c00;">P2 — Security / Public Order (Military Zone)</span></div>'
+            '<span style="color:#ffaa33; text-shadow:0 0 6px #ff8c00;">P2 — Security / Public Order (Military Zone, etc.)</span></div>'
             '<div style="margin:4px 0;"><span style="color:#ffd700; text-shadow:0 0 8px #ffd700; font-weight:bold;">⬤</span> '
-            '<span style="color:#ffe44d; text-shadow:0 0 6px #ffd700;">P3 — Socially Sensitive (School, Care Home)</span></div>'
+            '<span style="color:#ffe44d; text-shadow:0 0 6px #ffd700;">P3 — Socially Sensitive (School, Care Home, etc.)</span></div>'
             '</div>',
             unsafe_allow_html=True
         )
